@@ -328,26 +328,9 @@ program
         logger.debug('tsKf = %d', tsKf);
 
         // Fetch the total points in the system
-        const totalPointsQuery = db.query<{ total: number }, null>(
-            'SELECT SUM(points + points_l1 + points_l2) as total FROM user_points_public',
-        );
-        const totalPoints = totalPointsQuery.get(null)?.total || 0;
-
-        if (totalPoints === 0) {
-            logger.info('No points in the system.');
-        }
-
-        const capPercentage = 5; // Define cap (e.g., 5%)
         const scaleFactor = 1000;
 
-        let havingClause = '';
         let queryParams = [batchId];
-
-        if (totalPoints > 0) {
-            // Apply the cap only if there are already points in the system
-            havingClause = `HAVING (SUM(p.price * ud.balance * ${tsKf}) / ${totalPoints} * 100) < ?`;
-            queryParams.push(capPercentage);
-        }
 
         const tx = db.transaction(() => {
             db.exec<number[]>(
@@ -370,7 +353,6 @@ program
           ud.address NOT IN (SELECT address FROM blacklist)
         GROUP BY 
           ud.batch_id, ud.address, xasset_id
-        ${havingClause}
         `,
                 queryParams,
             );
