@@ -146,6 +146,6 @@ expressApp.use(
     }),
 );
 
-expressApp.listen(port, () => {
-    logger.debug(`Server is running on http://localhost:${port}`);
+expressApp.listen(port, '0.0.0.0', () => {
+    logger.debug(`Server is running on http://0.0.0.0:${port}`);
 });
