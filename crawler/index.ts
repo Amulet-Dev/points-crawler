@@ -27,6 +27,10 @@ if (!config.log_level) {
     throw new Error('LOG_LEVEL environment variable not set');
 }
 
+function fromDenom(amount: number, decimals: number): number {
+    return amount / Math.pow(10, decimals);
+}
+
 validateOnChainContractInfo(config);
 
 const logger = getLogger(config);
@@ -244,13 +248,24 @@ program
                 );
                 const insert = db.transaction((balances) => {
                     for (const balance of balances) {
+                        // Get the decimals from the config for the asset
+                        const decimals =
+                            config.protocols.neutron.assets[balance.asset]?.decimals || 6; // Default to 6 if undefined
+
+                        // Convert the balance to a human-readable format
+                        const humanReadableBalance = fromDenom(
+                            Number(balance.balance),
+                            decimals,
+                        );
+
+                        // Save the converted balance to the database
                         query.run(
                             batchId,
                             toNeutronAddress(balance.address),
                             protocolId,
                             height,
                             balance.asset,
-                            balance.balance,
+                            humanReadableBalance.toFixed(6), // Save the human-readable balance
                         );
                     }
                     return balances.length;
@@ -328,33 +343,39 @@ program
         logger.debug('tsKf = %d', tsKf);
 
         // Fetch the total points in the system
-        const scaleFactor = 1000;
-
-        let queryParams = [batchId];
-
         const tx = db.transaction(() => {
-            db.exec<number[]>(
+            // Calculate points for each user based on all sources
+            config;
+            db.exec<[number]>(
                 `
-        INSERT INTO user_points (batch_id, address, asset_id, points)
-        SELECT ud.batch_id, ud.address, 
-               CASE 
-                 WHEN INSTR(ud.asset, '_') > 0 
-                 THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1) 
-                 ELSE ud.asset 
-               END AS xasset_id, 
-               FLOOR(SUM(p.price * ud.balance * ${tsKf}) / ${scaleFactor}) AS points
-        FROM 
-          user_data ud
-        LEFT JOIN 
-          prices p ON (p.asset_id = ud.asset AND p.batch_id = ud.batch_id)
-        WHERE 
-          ud.batch_id = ?
-        AND 
-          ud.address NOT IN (SELECT address FROM blacklist)
-        GROUP BY 
-          ud.batch_id, ud.address, xasset_id
-        `,
-                queryParams,
+      INSERT 
+        INTO user_points (batch_id, address, asset_id, points)
+        SELECT 
+          batch_id, address, xasset_id asset_id, points 
+        FROM
+          (
+            SELECT 
+              ud.batch_id, 
+              ud.address, 
+              CASE 
+                WHEN INSTR(ud.asset, '_') > 0 
+                THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1) 
+                ELSE ud.asset 
+				      END AS xasset_id, 
+              FLOOR(SUM(p.price * ud.balance * ${tsKf})) points
+            FROM 
+              user_data ud
+            LEFT JOIN 
+              prices p ON (p.asset_id = xasset_id AND p.batch_id = ud.batch_id)
+            WHERE 
+              ud.batch_id = ?
+            AND
+              address NOT IN (select address from blacklist)
+            GROUP BY 
+              ud.batch_id, ud.address, xasset_id
+          ) x 
+      `,
+                [batchId],
             );
 
             db.exec<[number]>(
@@ -520,6 +541,172 @@ program
         }
 
         logger.info('Points have been saved to the on chain contract');
+    });
+
+program
+    .command('recalculate')
+    .description(
+        'Recalculate user points and user data for a specific batch or set of batch IDs',
+    )
+    .option(
+        '-b, --batch_ids <batch_ids>',
+        'Comma-separated list of batch IDs to recalculate',
+    )
+    .option(
+        '-p, --protocol_id <protocol_id>',
+        'Protocol to recalculate user data for',
+    )
+    .action(async (options: { protocol_id: string; batch_ids: string }) => {
+        const protocolId = options.protocol_id;
+        const batchIds = options.batch_ids
+            .split(',')
+            .map((id) => parseInt(id.trim(), 10));
+
+        if (batchIds.some(isNaN)) {
+            logger.error('Invalid batch IDs provided');
+            return;
+        }
+
+        logger.info(
+            'Recalculating points and user data for batch IDs: %s',
+            batchIds.join(', '),
+        );
+
+        const recalculateUserData = async (batchId: number) => {
+            // Find the height for the given batch ID and protocol
+            const row = db
+                .query<
+                    { height: number },
+                    [number, string]
+                >('SELECT height FROM tasks WHERE batch_id = ? AND protocol_id = ? LIMIT 1')
+                .get(batchId, protocolId);
+
+            if (!row) {
+                logger.error(
+                    'No height found for batch ID %d and protocol %s',
+                    batchId,
+                    protocolId,
+                );
+                throw new Error('Height not found for this batch');
+            }
+
+            const height = row.height;
+            logger.info(
+                'Found height %d for batch ID %d and protocol %s',
+                height,
+                batchId,
+                protocolId,
+            );
+
+            // Delete existing user_data for the batch
+            db.exec<[number]>('DELETE FROM user_data WHERE batch_id = ?', [batchId]);
+            logger.info('Removed old user data for batch %d', batchId);
+
+            // Logic to re-fetch balances and reinsert them into user_data
+            const multipliers = getAssetMulsByProtocolAndBatchId(protocolId, batchId);
+            const sourceObj = new sources[
+                config.protocols[protocolId].source as keyof typeof sources
+            ](config.protocols[protocolId].rpc, logger, config.protocols[protocolId]);
+            await sourceObj.getUsersBalances(
+                height, // Adjust height as per your needs
+                multipliers,
+                (balances: UserBalance[]) => {
+                    const query = db.prepare<
+                        unknown,
+                        [number, string, string, number, string, string]
+                    >(
+                        'INSERT INTO user_data (batch_id, address, protocol_id, height, asset, balance) VALUES (?, ?, ?, ?, ?, ?);',
+                    );
+                    const insert = db.transaction((balances) => {
+                        for (const balance of balances) {
+                            const decimals =
+                                config.protocols.neutron.assets[balance.asset]?.decimals || 6;
+                            const humanReadableBalance = fromDenom(
+                                Number(balance.balance),
+                                decimals,
+                            ).toFixed(6);
+                            query.run(
+                                batchId,
+                                toNeutronAddress(balance.address),
+                                protocolId,
+                                height,
+                                balance.asset,
+                                humanReadableBalance, // Save recalculated human-readable balance
+                            );
+                        }
+                        return balances.length;
+                    });
+                    const res = insert(balances);
+                    logger.info(
+                        'Recalculated and inserted %d user balances for batch %d',
+                        res,
+                        batchId,
+                    );
+                },
+            );
+        };
+
+        const recalculatePoints = (batchId: number) => {
+            let tsKf = 0;
+
+            if (batchId > 1) {
+                const query = db.query<{ ts: number }, [number, number]>(
+                    'SELECT ts FROM batches WHERE batch_id = ? OR batch_id = ? - 1 ORDER BY batch_id DESC LIMIT 2',
+                );
+                const [ts1, ts2] = query.all(batchId, batchId).map((row) => row.ts);
+                tsKf = (ts1 - ts2) / (24 * 60 * 60);
+            } else {
+                tsKf = config.default_interval / (24 * 60 * 60);
+            }
+
+            logger.debug('tsKf for batch %d = %d', batchId, tsKf);
+
+            // Remove the existing points for this batch
+            db.exec<[number]>('DELETE FROM user_points WHERE batch_id = ?', [
+                batchId,
+            ]);
+            logger.info('Removed old points for batch %d', batchId);
+
+            logger.info('asdfasdf');
+            // Recalculate points for this batch
+            db.exec<[number]>(
+                `
+                INSERT INTO user_points (batch_id, address, asset_id, points)
+                SELECT 
+                  ud.batch_id, ud.address, 
+                  CASE 
+                    WHEN INSTR(ud.asset, '_') > 0 
+                    THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1) 
+                    ELSE ud.asset 
+                  END AS xasset_id, 
+                  FLOOR(SUM(p.price * ud.balance * ${tsKf})) AS points
+                FROM 
+                  user_data ud
+                LEFT JOIN 
+                  prices p ON (p.asset_id = xasset_id AND p.batch_id = ud.batch_id)
+                WHERE 
+                  ud.batch_id = ?
+                AND
+                  ud.address NOT IN (SELECT address FROM blacklist)
+                GROUP BY 
+                  ud.batch_id, ud.address, xasset_id
+                `,
+                [batchId],
+            );
+            logger.info('herereer');
+            logger.info('Recalculated and inserted new points for batch %d', batchId);
+        };
+
+        for (const batchId of batchIds) {
+            await recalculateUserData(batchId);
+            logger.info('Now recaluclating points...');
+            recalculatePoints(batchId);
+        }
+
+        logger.info(
+            'Recalculation of points and user data complete for batch IDs: %s',
+            batchIds.join(', '),
+        );
     });
 
 const scheduleCli = program
