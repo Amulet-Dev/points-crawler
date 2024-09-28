@@ -646,7 +646,7 @@ program
             );
         };
 
-        const recalculatePoints = (batchId: number) => {
+        const recalculatePoints = async (batchId: number) => {
             let tsKf = 0;
 
             if (batchId > 1) {
@@ -697,10 +697,61 @@ program
             logger.info('Recalculated and inserted new points for batch %d', batchId);
         };
 
+        const recalculateUserPointsPublic = async (batchId: number) => {
+            logger.debug(
+                'Publishing points to user_points_public for batch %d',
+                batchId,
+            );
+
+            db.exec('DELETE FROM user_points_public');
+            logger.info('Cleared all entries from user_points_public');
+
+            // Prepare the query to get the timestamp from the batches table for the current batchId
+            const stmt2 = db.prepare<{ ts: number }, [number]>(
+                `SELECT ts FROM batches WHERE batch_id = ?`,
+            );
+            const row = stmt2.get(batchId); // Use the prepared statement to get the result
+            if (!row) {
+                logger.error('No batch found for batch ID %d', batchId);
+                return;
+            }
+
+            db.exec(`UPDATE user_points_public SET change = 0`);
+
+            logger.info('Set user_points_public change to 0');
+
+            db.exec(
+                `INSERT INTO user_points_public (address, asset_id, points, change, prev_points_l1, prev_points_l2, points_l1, points_l2, place, prev_place)
+         SELECT address, asset_id, SUM(points) points, SUM(points) change, 0, 0, 0, 0, 0, 0
+         FROM user_points
+         WHERE batch_id = ?
+         GROUP BY address, asset_id
+         ON CONFLICT (address, asset_id) DO UPDATE SET change = excluded.change, points = user_points_public.points + excluded.points`,
+                [batchId],
+            );
+
+            logger.info('Insert into user_points_public');
+
+            db.exec(
+                `UPDATE user_points_public 
+         SET change = change + (points_l1 + points_l2) - (prev_points_l1 + prev_points_l2)`,
+            );
+
+            db.exec(`UPDATE batches SET status="processed" WHERE batch_id = ?`, [
+                batchId,
+            ]);
+
+            logger.info(
+                'Recalculated and published user points public for batch %d',
+                batchId,
+            );
+        };
+
         for (const batchId of batchIds) {
             await recalculateUserData(batchId);
             logger.info('Now recaluclating points...');
-            recalculatePoints(batchId);
+            await recalculatePoints(batchId);
+            await recalculateUserPointsPublic(batchId);
         }
 
         logger.info(
