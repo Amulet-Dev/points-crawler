@@ -3,7 +3,7 @@ log_level = "debug"
 assets = ["amATOM"]
 default_interval = 43200 #seconds
 
-sources = ["neutron"]
+sources = ["neutron", "neutron-astroport"]
 
 l1_percent = 25
 l2_percent = 12
@@ -36,30 +36,64 @@ type = "single-sided"
 featured = false
 status = true
 
-# [protocols.neutron-astroport]
-# rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
-# source = "astroport"
-# jitter = 10000
-# concurrency_limit = 6
-# pagination_limit = 30
-# [protocols.neutron-astroport.assets.dATOM]
-# multiplier = 1
-# denom = "ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9"
-# pair_contract = "neutron15d0se9nw9stqx9ms9ey85gfpraqwl80t5urmjfk2jwtqxpxk3x3qctjt4n"
+# Astroport configuration
 
-# [protocols.neutron-astroport.frontend_data]
-# chain_name = "neutron"
-# link = "https://astroport.fi"
-# link_text = "Go to Astroport"
-# [protocols.neutron-astroport.assets.dATOM.frontend_data]
-# multiplier = 1
-# visible = true
-# strategy = "dATOM/ATOM"
-# description = "LP on Astroport"
-# type = "correlated"
-# featured = true
-# status = true
-#
+[protocols.neutron-astroport]
+rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+source = "astroport"
+jitter = 10000
+concurrency_limit = 6
+pagination_limit = 30
+
+[protocols.neutron-astroport.frontend_data]
+chain_name = "neutron"
+link = "https://astroport.fi"
+link_text = "Go to Astroport"
+
+[protocols.neutron-astroport.assets.amATOM_USDC]
+multiplier = 10
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+pair_contract = "neutron1xchp4gkr4w5ux9a4zc0k6zptndsq8jjhvdfsqu0qacsg0ssakfysezfkst"
+
+[protocols.neutron-astroport.assets.amATOM_USDC.frontend_data]
+multiplier = 10
+visible = true
+strategy = "amATOM/USDC"
+description = "Astroport Liquidity Pool"
+type = "correlated"
+featured = true
+status = true
+
+[protocols.neutron-astroport.assets.amATOM_dATOM]
+multiplier = 5
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+pair_contract = "neutron14y0xyavpf5xznw56u3xml9f2jmx8ruk3y8f5e6zzkd9mhmcps3fs59g4vt"
+
+[protocols.neutron-astroport.assets.amATOM_dATOM.frontend_data]
+multiplier = 5
+visible = true
+strategy = "amATOM/dATOM"
+description = "Astroport Liquidity Pool"
+type = "correlated"
+featured = true
+status = true
+
+[protocols.neutron-astroport.assets.amATOM_stATOM]
+multiplier = 5
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+pair_contract = "neutron1w8vmg3zwyh62edp7uxpaw90447da9zzlv0kqh2ajye6a6mseg06qseyv5m"
+
+[protocols.neutron-astroport.assets.amATOM_stATOM.frontend_data]
+multiplier = 5
+visible = true
+strategy = "amATOM/stATOM"
+description = "Astroport Liquidity Pool"
+type = "correlated"
+featured = true
+status = true
+
+
+
 # [protocols.neutron-astroport-generator]
 # rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
 # source = "generator"
@@ -70,7 +104,7 @@ status = true
 # multiplier = 1
 # denom = "ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9"
 # pair_contract = "neutron15d0se9nw9stqx9ms9ey85gfpraqwl80t5urmjfk2jwtqxpxk3x3qctjt4n"
-#
+
 # [protocols.neutron-astroport-generator.frontend_data]
 # chain_name = "neutron"
 # link = "https://astroport.fi"
