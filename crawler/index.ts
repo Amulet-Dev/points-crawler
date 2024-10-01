@@ -112,6 +112,7 @@ program
             logger.info('No protocols found in the schedule');
             return;
         }
+        logger.info(protocolsInDb);
         const queryInsertBatch = db.prepare<{ batch_id: number }, [number, string]>(
             'INSERT INTO batches (ts, status) VALUES (?, ?) RETURNING batch_id',
         );
