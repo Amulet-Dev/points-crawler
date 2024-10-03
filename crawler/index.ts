@@ -305,9 +305,10 @@ program
                 return batchId;
             } else {
                 const query = db.query<{ batch_id: number }, [number]>(
-                    'SELECT batch_id FROM tasks WHERE status = "ready" AND height = ? ORDER BY batch_id ASC LIMIT 1',
+                    'SELECT batch_id FROM tasks WHERE status = "ready" AND batch_id = ? ORDER BY batch_id ASC LIMIT 1',
                 );
                 const row = query.get(options.batch_id);
+                console.log(row);
                 if (!row) {
                     logger.info('No tasks found for batch_id %s', options.batch_id);
                 }

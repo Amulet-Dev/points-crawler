@@ -10,3 +10,5 @@ data.db-wal
 /contracts/artifacts/
 /contracts/.rtx.toml
 /store/*
+/backups/*
+/backup/*
