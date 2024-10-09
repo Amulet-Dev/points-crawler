@@ -3,7 +3,7 @@ log_level = "debug"
 assets = ["amATOM"]
 default_interval = 43200 #seconds
 
-sources = ["neutron", "neutron-astroport"]
+sources = ["neutron", "astroport", "generator"]
 
 l1_percent = 25
 l2_percent = 12
@@ -88,6 +88,60 @@ multiplier = 5
 visible = true
 strategy = "amATOM/stATOM"
 description = "Astroport Liquidity Pool"
+type = "correlated"
+featured = true
+status = true
+
+[protocols.neutron-astroport-generator]
+rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+source = "generator"
+jitter = 10000
+pagination_limit = 50
+generator_contract = "neutron173fd8wpfzyqnfnpwq2zhtgdstujrjz2wkprkjfr6gqg4gknctjyq6m3tch"
+
+[protocols.neutron-astroport-generator.frontend_data]
+chain_name = "neutron"
+link = "https://astroport.fi"
+link_text = "Go to Astroport"
+
+[protocols.neutron-astroport-generator.assets.amATOM_dATOM]
+multiplier = 1
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+pair_contract = "neutron14y0xyavpf5xznw56u3xml9f2jmx8ruk3y8f5e6zzkd9mhmcps3fs59g4vt"
+
+[protocols.neutron-astroport-generator.assets.amATOM_dATOM.frontend_data]
+multiplier = 5
+visible = true
+strategy = "amATOM/dATOM"
+description = "Staked LP on Astroport Generator"
+type = "correlated"
+featured = true
+status = true
+
+[protocols.neutron-astroport-generator.assets.amATOM_stATOM]
+multiplier = 5
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+pair_contract = "neutron1w8vmg3zwyh62edp7uxpaw90447da9zzlv0kqh2ajye6a6mseg06qseyv5m"
+
+[protocols.neutron-astroport-generator.assets.amATOM_stATOM.frontend_data]
+multiplier = 5
+visible = true
+strategy = "amATOM/stATOM"
+description = "Staked LP on Astroport Generator"
+type = "correlated"
+featured = true
+status = true
+
+[protocols.neutron-astroport-generator.assets.amATOM_USDC]
+multiplier = 10
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+pair_contract = "neutron1xchp4gkr4w5ux9a4zc0k6zptndsq8jjhvdfsqu0qacsg0ssakfysezfkst"
+
+[protocols.neutron-astroport-generator.assets.amATOM_USDC.frontend_data]
+multiplier = 10
+visible = true
+strategy = "amATOM/USDC"
+description = "Staked LP on Astroport Generator"
 type = "correlated"
 featured = true
 status = true
