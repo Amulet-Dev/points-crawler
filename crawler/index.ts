@@ -504,13 +504,15 @@ program
         logger.info('Finishing task for batch_id %s', batchId);
 
         const query = db.query<{ cnt: number }, number>(
-            'SELECT count(*) as cnt FROM tasks WHERE batch_id = ? AND status <> "ready"',
+            'SELECT count(*) as cnt FROM tasks WHERE batch_id = ? AND status NOT IN ("ready", "processed")',
         );
+
         const cnt = query.get(batchId)?.cnt;
         if (cnt !== 0) {
             logger.error('Not all tasks are ready');
             return;
         }
+
         logger.info('All tasks are ready');
 
         let tsKf = 0;
@@ -527,6 +529,17 @@ program
 
         // Fetch the total points in the system
         const tx = db.transaction(() => {
+            // Process only "ready" tasks
+            const readyTasksQuery = db.query<{ count: number }, [number]>(
+                'SELECT COUNT(*) as count FROM tasks WHERE batch_id = ? AND status = "ready"',
+            );
+            const readyTaskCount = readyTasksQuery.get(batchId)?.count;
+
+            if (readyTaskCount === 0) {
+                logger.info('No "ready" tasks found to process');
+                return;
+            }
+
             // Calculate points for each user based on all sources
             db.exec<[number]>(
                 `
@@ -553,6 +566,16 @@ program
                     ud.batch_id = ?
                   AND
                     address NOT IN (select address from blacklist)
+                  AND
+                    EXISTS (
+                      SELECT 1 
+                      FROM tasks t 
+                      WHERE 
+                        t.batch_id = ud.batch_id 
+                        AND t.protocol_id = ud.protocol_id 
+                        AND t.height = ud.height
+                        AND t.status = 'ready'
+                    )
                   GROUP BY
                     ud.batch_id, ud.address, xasset_id
                 ) x
