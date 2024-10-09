@@ -75,6 +75,191 @@ const getAssetMulsByProtocolAndBatchId = (
 };
 
 program
+    .command('manual-task')
+    .description('Manually add tasks with specified block height and timestamp')
+    .option('-t --timestamp <timestamp>', 'Timestamp to use')
+    .option('-h --height <height>', 'Block height to use')
+    .option('-j --jitter <jitter>', 'Jitter to use')
+    .action(async (options) => {
+        const ts = parseInt(options.timestamp, 10);
+        const height = parseInt(options.height, 10);
+        const jitter = parseInt(options.jitter, 10);
+
+        if (!ts || !height || !jitter) {
+            throw new Error('Timestamp and height must be provided.');
+        }
+
+        // Check if batch already exists with the given timestamp
+        const existingBatchQuery = db.prepare<{ batch_id: number }, number>(
+            'SELECT batch_id FROM batches WHERE ts = ?',
+        );
+        const existingBatch = existingBatchQuery.get(ts);
+
+        let batchId;
+        if (existingBatch) {
+            // Reuse existing batch
+            batchId = existingBatch.batch_id;
+            logger.info('Reusing existing batch %d for timestamp %d', batchId, ts);
+        } else {
+            // Insert new batch
+            const queryInsertBatch = db.prepare<
+                { batch_id: number },
+                [number, string]
+            >('INSERT INTO batches (ts, status) VALUES (?, ?) RETURNING batch_id');
+            batchId = queryInsertBatch.get(ts, 'manual')?.batch_id;
+            if (!batchId) {
+                throw new Error('Failed to insert batch');
+            }
+            logger.info('Inserted manual batch %d', batchId);
+        }
+
+        // Pre-check if all tasks already exist
+        const existingTasksCheck = db.prepare<{ count: number }, [number, number]>(`
+          SELECT COUNT(*) as count FROM tasks
+          WHERE batch_id = ? AND height = ? AND protocol_id IN (
+              SELECT protocol_id FROM schedule WHERE enabled = 1
+          )`);
+        const existingTasksCount = existingTasksCheck.get(batchId, height);
+        if (!existingTasksCount) {
+            logger.error('Task count query failed');
+            return;
+        }
+
+        // If the count of existing tasks matches the number of enabled protocols, exit early
+        const protocolCountQuery = db.prepare<{ count: number }, null>(
+            'SELECT COUNT(DISTINCT protocol_id) as count FROM schedule WHERE enabled = 1',
+        );
+        const totalProtocols = protocolCountQuery.get(null);
+        if (!totalProtocols) {
+            logger.error('Protocol count query failed');
+            return;
+        }
+
+        if (existingTasksCount.count >= totalProtocols.count) {
+            logger.info(
+                'All tasks already exist for batch %d and height %d. Exiting early.',
+                batchId,
+                height,
+            );
+            return;
+        }
+
+        const tasksCheck = db.prepare<{ count: number }, [string, number, number]>(
+            'SELECT COUNT(*) as count FROM tasks WHERE protocol_id = ? AND batch_id = ? AND height = ?',
+        );
+
+        const tasksTx = db.prepare(
+            'INSERT INTO tasks (protocol_id, batch_id, height, status, jitter, ts) VALUES (?, ?, ?, ?, ?, ?)',
+        );
+
+        const query = db.query<
+            { protocol_id: string; asset_id: number; multiplier: number },
+            null
+        >(
+            `SELECT protocol_id, asset_id, multiplier FROM schedule WHERE enabled = 1`,
+        );
+        const protocolsInDb = query.all(null);
+
+        if (!protocolsInDb.length) {
+            logger.info('No protocols found in the schedule');
+            return;
+        }
+
+        for (const protocol of protocolsInDb) {
+            const c = tasksCheck.get(protocol.protocol_id, batchId, height);
+            const taskExists = c && c.count > 0;
+            if (!taskExists) {
+                tasksTx.run(protocol.protocol_id, batchId, height, 'new', jitter, ts);
+                logger.info('Inserted new task for protocol %s', protocol.protocol_id);
+            } else {
+                logger.info(
+                    'Task already exists for protocol %s',
+                    protocol.protocol_id,
+                );
+            }
+        }
+
+        tasksTx.finalize();
+        logger.info(
+            'Manually added tasks with height %d and timestamp %d',
+            height,
+            ts,
+        );
+    });
+
+// program
+//     .command('manual-task')
+//     .description('Manually add tasks with specified block height and timestamp')
+//     .option('-t --timestamp <timestamp>', 'Timestamp to use')
+//     .option('-h --height <height>', 'Block height to use')
+//     .option('-j --jitter <jitter>', 'Jitter to use')
+//     .action(async (options) => {
+//         const ts = parseInt(options.timestamp, 10);
+//         const height = parseInt(options.height, 10);
+//         const jitter = parseInt(options.jitter, 10);
+//
+//         if (!ts || !height) {
+//             throw new Error('Timestamp and height must be provided.');
+//         }
+//
+//         const query = db.query<
+//             { protocol_id: string; asset_id: number; multiplier: number },
+//             null
+//         >(
+//             `
+//           SELECT protocol_id, asset_id, multiplier
+//           FROM schedule
+//           WHERE enabled = 1
+//           `,
+//         );
+//         const protocolsInDb = query.all(null);
+//         if (!protocolsInDb.length) {
+//             logger.info('No protocols found in the schedule');
+//             return;
+//         }
+//
+//         const queryInsertBatch = db.prepare<{ batch_id: number }, [number, string]>(
+//             'INSERT INTO batches (ts, status) VALUES (?, ?) RETURNING batch_id',
+//         );
+//         const batchId = queryInsertBatch.get(ts, 'new')?.batch_id;
+//         if (!batchId) {
+//             throw new Error('Failed to insert batch');
+//         }
+//         logger.info('Inserted manual batch %d', batchId);
+//
+//         const tasksCheck = db.prepare<{ count: number }, [string, number, number]>(
+//             'SELECT COUNT(*) as count FROM tasks WHERE protocol_id = ? AND batch_id = ? AND height = ?',
+//         );
+//
+//         const tasksTx = db.prepare(
+//             'INSERT INTO tasks (protocol_id, batch_id, height, status, jitter, ts) VALUES (?, ?, ?, ?, ?, ?)',
+//         );
+//
+//         for (const protocol of protocolsInDb) {
+//             // Check if the task already exists
+//             const taskCount = tasksCheck.get(protocol.protocol_id, batchId, height);
+//             const taskExists = taskCount && taskCount.count > 0;
+//             if (!taskExists) {
+//                 // Insert the new task
+//                 tasksTx.run(protocol.protocol_id, batchId, height, 'new', jitter, ts);
+//                 logger.info('Inserted new task for protocol %s', protocol.protocol_id);
+//             } else {
+//                 logger.info(
+//                     'Task already exists for protocol %s',
+//                     protocol.protocol_id,
+//                 );
+//             }
+//         }
+//
+//         tasksTx.finalize();
+//         logger.info(
+//             'Manually added tasks with height %d and timestamp %d',
+//             height,
+//             ts,
+//         );
+//     });
+//
+program
     .command('prepare')
     .description('Prepare tasks for processing sources')
     .option('-t --timestamp <timestamp>', 'Timestamp to use')
