@@ -250,14 +250,11 @@ program
                 const insert = db.transaction((balances) => {
                     for (const balance of balances) {
                         // Get the decimals from the config for the asset
-                        const decimals =
-                            config.protocols.neutron.assets[balance.asset]?.decimals || 6; // Default to 6 if undefined
+                        // const decimals =
+                        //     config.protocols.neutron.assets[balance.asset]?.decimals || 6; // Default to 6 if undefined
 
                         // Convert the balance to a human-readable format
-                        const humanReadableBalance = fromDenom(
-                            Number(balance.balance),
-                            decimals,
-                        );
+                        const humanReadableBalance = fromDenom(Number(balance.balance), 6);
 
                         // Save the converted balance to the database
                         query.run(
@@ -266,7 +263,7 @@ program
                             protocolId,
                             height,
                             balance.asset,
-                            humanReadableBalance.toFixed(6), // Save the human-readable balance
+                            humanReadableBalance.toFixed(6),
                         );
                     }
                     return balances.length;
@@ -308,7 +305,6 @@ program
                     'SELECT batch_id FROM tasks WHERE status = "ready" AND batch_id = ? ORDER BY batch_id ASC LIMIT 1',
                 );
                 const row = query.get(options.batch_id);
-                console.log(row);
                 if (!row) {
                     logger.info('No tasks found for batch_id %s', options.batch_id);
                 }
@@ -347,36 +343,35 @@ program
         // Fetch the total points in the system
         const tx = db.transaction(() => {
             // Calculate points for each user based on all sources
-            config;
             db.exec<[number]>(
                 `
-      INSERT 
-        INTO user_points (batch_id, address, asset_id, points)
-        SELECT 
-          batch_id, address, xasset_id asset_id, points 
-        FROM
-          (
-            SELECT 
-              ud.batch_id, 
-              ud.address, 
-              CASE 
-                WHEN INSTR(ud.asset, '_') > 0 
-                THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1) 
-                ELSE ud.asset 
-				      END AS xasset_id, 
-              FLOOR(SUM(p.price * ud.balance * ${tsKf})) points
-            FROM 
-              user_data ud
-            LEFT JOIN 
-              prices p ON (p.asset_id = xasset_id AND p.batch_id = ud.batch_id)
-            WHERE 
-              ud.batch_id = ?
-            AND
-              address NOT IN (select address from blacklist)
-            GROUP BY 
-              ud.batch_id, ud.address, xasset_id
-          ) x 
-      `,
+            INSERT
+              INTO user_points (batch_id, address, asset_id, points)
+              SELECT
+                batch_id, address, xasset_id asset_id, points
+              FROM
+                (
+                  SELECT
+                    ud.batch_id,
+                    ud.address,
+                    CASE
+                      WHEN INSTR(ud.asset, '_') > 0
+                      THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1)
+                      ELSE ud.asset
+                END AS xasset_id,
+                    FLOOR(SUM(p.price * ud.balance * ${tsKf})) points
+                  FROM
+                    user_data ud
+                  LEFT JOIN
+                    prices p ON (p.asset_id = xasset_id AND p.batch_id = ud.batch_id)
+                  WHERE
+                    ud.batch_id = ?
+                  AND
+                    address NOT IN (select address from blacklist)
+                  GROUP BY
+                    ud.batch_id, ud.address, xasset_id
+                ) x
+            `,
                 [batchId],
             );
 
@@ -601,7 +596,10 @@ program
             );
 
             // Delete existing user_data for the batch
-            db.exec<[number]>('DELETE FROM user_data WHERE batch_id = ?', [batchId]);
+            db.exec<[number, string]>(
+                'DELETE FROM user_data WHERE batch_id = ? AND protocol_id = ?',
+                [batchId, protocolId],
+            );
             logger.info('Removed old user data for batch %d', batchId);
 
             // Logic to re-fetch balances and reinsert them into user_data
@@ -621,11 +619,11 @@ program
                     );
                     const insert = db.transaction((balances) => {
                         for (const balance of balances) {
-                            const decimals =
-                                config.protocols.neutron.assets[balance.asset]?.decimals || 6;
+                            // const decimals =
+                            //     config.protocols.neutron.assets[balance.asset]?.decimals || 6;
                             const humanReadableBalance = fromDenom(
                                 Number(balance.balance),
-                                decimals,
+                                6,
                             ).toFixed(6);
                             query.run(
                                 batchId,
@@ -633,7 +631,7 @@ program
                                 protocolId,
                                 height,
                                 balance.asset,
-                                humanReadableBalance, // Save recalculated human-readable balance
+                                humanReadableBalance,
                             );
                         }
                         return balances.length;
@@ -667,28 +665,30 @@ program
             db.exec<[number]>('DELETE FROM user_points WHERE batch_id = ?', [
                 batchId,
             ]);
+
             logger.info('Removed old points for batch %d', batchId);
+
             // Recalculate points for this batch
             db.exec<[number]>(
                 `
                 INSERT INTO user_points (batch_id, address, asset_id, points)
-                SELECT 
-                  ud.batch_id, ud.address, 
-                  CASE 
-                    WHEN INSTR(ud.asset, '_') > 0 
-                    THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1) 
-                    ELSE ud.asset 
-                  END AS xasset_id, 
+                SELECT
+                  ud.batch_id, ud.address,
+                  CASE
+                    WHEN INSTR(ud.asset, '_') > 0
+                    THEN SUBSTR(ud.asset, 1, INSTR(ud.asset, '_') - 1)
+                    ELSE ud.asset
+                  END AS xasset_id,
                   FLOOR(SUM(p.price * ud.balance * ${tsKf})) AS points
-                FROM 
+                FROM
                   user_data ud
-                LEFT JOIN 
+                LEFT JOIN
                   prices p ON (p.asset_id = xasset_id AND p.batch_id = ud.batch_id)
-                WHERE 
+                WHERE
                   ud.batch_id = ?
                 AND
                   ud.address NOT IN (SELECT address FROM blacklist)
-                GROUP BY 
+                GROUP BY
                   ud.batch_id, ud.address, xasset_id
                 `,
                 [batchId],
