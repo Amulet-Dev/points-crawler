@@ -529,7 +529,6 @@ program
 
         // Fetch the total points in the system
         const tx = db.transaction(() => {
-            // Process only "ready" tasks
             const readyTasksQuery = db.query<{ count: number }, [number]>(
                 'SELECT COUNT(*) as count FROM tasks WHERE batch_id = ? AND status = "ready"',
             );
@@ -543,7 +542,7 @@ program
             // Calculate points for each user based on all sources
             db.exec<[number]>(
                 `
-            INSERT
+            INSERT OR REPLACE
               INTO user_points (batch_id, address, asset_id, points)
               SELECT
                 batch_id, address, xasset_id asset_id, points
@@ -566,16 +565,6 @@ program
                     ud.batch_id = ?
                   AND
                     address NOT IN (select address from blacklist)
-                  AND
-                    EXISTS (
-                      SELECT 1 
-                      FROM tasks t 
-                      WHERE 
-                        t.batch_id = ud.batch_id 
-                        AND t.protocol_id = ud.protocol_id 
-                        AND t.height = ud.height
-                        AND t.status = 'ready'
-                    )
                   GROUP BY
                     ud.batch_id, ud.address, xasset_id
                 ) x
