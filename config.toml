@@ -105,7 +105,7 @@ link = "https://astroport.fi"
 link_text = "Go to Astroport"
 
 [protocols.neutron-astroport-generator.assets.amATOM_dATOM]
-multiplier = 1
+multiplier = 5
 denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
 pair_contract = "neutron14y0xyavpf5xznw56u3xml9f2jmx8ruk3y8f5e6zzkd9mhmcps3fs59g4vt"
 
