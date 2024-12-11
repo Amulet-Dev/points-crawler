@@ -187,78 +187,6 @@ program
         );
     });
 
-// program
-//     .command('manual-task')
-//     .description('Manually add tasks with specified block height and timestamp')
-//     .option('-t --timestamp <timestamp>', 'Timestamp to use')
-//     .option('-h --height <height>', 'Block height to use')
-//     .option('-j --jitter <jitter>', 'Jitter to use')
-//     .action(async (options) => {
-//         const ts = parseInt(options.timestamp, 10);
-//         const height = parseInt(options.height, 10);
-//         const jitter = parseInt(options.jitter, 10);
-//
-//         if (!ts || !height) {
-//             throw new Error('Timestamp and height must be provided.');
-//         }
-//
-//         const query = db.query<
-//             { protocol_id: string; asset_id: number; multiplier: number },
-//             null
-//         >(
-//             `
-//           SELECT protocol_id, asset_id, multiplier
-//           FROM schedule
-//           WHERE enabled = 1
-//           `,
-//         );
-//         const protocolsInDb = query.all(null);
-//         if (!protocolsInDb.length) {
-//             logger.info('No protocols found in the schedule');
-//             return;
-//         }
-//
-//         const queryInsertBatch = db.prepare<{ batch_id: number }, [number, string]>(
-//             'INSERT INTO batches (ts, status) VALUES (?, ?) RETURNING batch_id',
-//         );
-//         const batchId = queryInsertBatch.get(ts, 'new')?.batch_id;
-//         if (!batchId) {
-//             throw new Error('Failed to insert batch');
-//         }
-//         logger.info('Inserted manual batch %d', batchId);
-//
-//         const tasksCheck = db.prepare<{ count: number }, [string, number, number]>(
-//             'SELECT COUNT(*) as count FROM tasks WHERE protocol_id = ? AND batch_id = ? AND height = ?',
-//         );
-//
-//         const tasksTx = db.prepare(
-//             'INSERT INTO tasks (protocol_id, batch_id, height, status, jitter, ts) VALUES (?, ?, ?, ?, ?, ?)',
-//         );
-//
-//         for (const protocol of protocolsInDb) {
-//             // Check if the task already exists
-//             const taskCount = tasksCheck.get(protocol.protocol_id, batchId, height);
-//             const taskExists = taskCount && taskCount.count > 0;
-//             if (!taskExists) {
-//                 // Insert the new task
-//                 tasksTx.run(protocol.protocol_id, batchId, height, 'new', jitter, ts);
-//                 logger.info('Inserted new task for protocol %s', protocol.protocol_id);
-//             } else {
-//                 logger.info(
-//                     'Task already exists for protocol %s',
-//                     protocol.protocol_id,
-//                 );
-//             }
-//         }
-//
-//         tasksTx.finalize();
-//         logger.info(
-//             'Manually added tasks with height %d and timestamp %d',
-//             height,
-//             ts,
-//         );
-//     });
-//
 program
     .command('prepare')
     .description('Prepare tasks for processing sources')
@@ -297,7 +225,6 @@ program
             logger.info('No protocols found in the schedule');
             return;
         }
-        logger.info(protocolsInDb);
         const queryInsertBatch = db.prepare<{ batch_id: number }, [number, string]>(
             'INSERT INTO batches (ts, status) VALUES (?, ?) RETURNING batch_id',
         );
@@ -868,7 +795,7 @@ program
             // Recalculate points for this batch
             db.exec<[number]>(
                 `
-                INSERT INTO user_points (batch_id, address, asset_id, points)
+                INSERT OR REPLACE INTO user_points (batch_id, address, asset_id, points)
                 SELECT
                   ud.batch_id, ud.address,
                   CASE
