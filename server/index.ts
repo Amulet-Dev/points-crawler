@@ -105,11 +105,23 @@ const appRouter = router({
         .query(getRules(db, logger)),
 });
 
-const port = Number(process.env.PORT) || 3000;
+const port = Number(process.env.CRAWLER_PORT) || 3000;
 
 const register = getRegistry(config, db);
 
-expressApp.get('/metrics', async (req, res, next) => {
+function getAllowedOrigins(): string[] {
+    const origins = process.env.CRAWLER_ALLOWED_ORIGINS;
+    if (!origins) {
+        return [];
+    }
+
+    return origins
+        .split(',')
+        .map((item) => item.trim())
+        .filter((item) => item.length > 0);
+}
+
+expressApp.get('/metrics', async (_req, res, next) => {
     res.setHeader('Content-type', register.contentType);
     res.send(await register.metrics());
     next();
@@ -133,9 +145,9 @@ expressApp.use((req, res, next) => {
 
 expressApp.use(
     cors({
-        origin: 'http://localhost:5173', // Allow requests from localhost:5173
-        methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed methods
-        credentials: true, // Allow cookies/auth tokens
+        origin: getAllowedOrigins(),
+        methods: ['GET', 'POST', 'PUT', 'DELETE'],
+        credentials: true,
     }),
 );
 
