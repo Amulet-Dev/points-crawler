@@ -13,7 +13,7 @@ blacklist = [
 ]
 
 [referral]
-graphql_url = "http://127.0.0.1:3001"
+graphql_url = "http://0.0.0.0:3001"
 
 [protocols.neutron]
 source = "neutron"
@@ -31,7 +31,7 @@ chain_name = "neutron"
 multiplier = 1
 visible = true
 strategy = "amATOM"
-description = "Holding amATOM on Neutron"
+description = "Earn ingots by holding amATOM in your wallet on Neutron"
 type = "single-sided"
 featured = false
 status = true
@@ -59,7 +59,7 @@ pair_contract = "neutron1xchp4gkr4w5ux9a4zc0k6zptndsq8jjhvdfsqu0qacsg0ssakfysezf
 multiplier = 10
 visible = true
 strategy = "amATOM/USDC"
-description = "Astroport Liquidity Pool"
+description = "Earn ingots by participating in the amATOM/USDC liquidity pool"
 type = "correlated"
 featured = true
 status = true
@@ -73,7 +73,7 @@ pair_contract = "neutron14y0xyavpf5xznw56u3xml9f2jmx8ruk3y8f5e6zzkd9mhmcps3fs59g
 multiplier = 5
 visible = true
 strategy = "amATOM/dATOM"
-description = "Astroport Liquidity Pool"
+description = "Earn ingots by participating in the amATOM/dATOM liquidity pool"
 type = "correlated"
 featured = true
 status = true
@@ -87,7 +87,7 @@ pair_contract = "neutron1w8vmg3zwyh62edp7uxpaw90447da9zzlv0kqh2ajye6a6mseg06qsey
 multiplier = 5
 visible = true
 strategy = "amATOM/stATOM"
-description = "Astroport Liquidity Pool"
+description = "Earn ingots by participating in the amATOM/stATOM liquidity pool"
 type = "correlated"
 featured = true
 status = true
@@ -166,7 +166,7 @@ lp_token = "neutron1hzuhznsmjx5ualms036svfrtyg3rpwa7kzet62xrx2pj79qcqgwsfyr9mw"
 multiplier = 15
 visible = true
 strategy = "amATOM LP"
-description = "Holding amATOM LP on Levana"
+description = "Earn ingots by staking in the amATOM LP on Levana"
 type = "single-sided"
 featured = false
 status = true
@@ -178,7 +178,7 @@ lp_token = "neutron1yx5jjuxllsx09jdynk04vfhkjktteujhkh7zpn96pay6ercpupkqufxhtd"
 multiplier = 30
 visible = true
 strategy = "amATOM xLP"
-description = "Holding amATOM xLP on Levana"
+description = "Earn ingots by staking in the amATOM xLP on Levana"
 type = "single-sided"
 featured = false
 status = true
@@ -192,6 +192,49 @@ status = true
 # multiplier = 1
 # denom = "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
 # vault_contract = "neutron14xx9hcw0cyw2vtxh586h5usymfyk06jnj677awhntrkxtm72amrsmj5fxt"
+
+# Osmosis Configuration
+
+# [protocols.osmosis-lp]
+# source = "osmosis-lp"
+# rpc = "https://rpc.archive.osmosis.zone"
+# graphql_url = "http://0.0.0.0:3001"
+# jitter = 10000
+# pagination_limit = 100
+# concurrency_limit = 5
+#
+# [protocols.osmosis-lp.frontend_data]
+# link = "https://app.osmosis.zone/pools"
+# link_text = "Go to Osmosis LP"
+# chain_name = "osmosis"
+#
+# [protocols.osmosis-lp.assets.amATOM_ATOM]
+# multiplier = 1
+# pool_id = "1464"
+# denom = "uosmo"
+#
+# [protocols.osmosis-lp.assets.amATOM_ATOM.frontend_data]
+# multiplier = 1
+# visible = true
+# strategy = "dATOM/ATOM"
+# description = "LP on Osmosis"
+# type = "correlated"
+# featured = false
+# status = true
+#
+# [protocols.osmosis-lp.assets.amATOM_OSMO]
+# multiplier = 1
+# pool_id = "1135"
+# denom = "uosmo"
+#
+# [protocols.osmosis-lp.assets.amATOM_OSMO.frontend_data]
+# multiplier = 1
+# visible = true
+# strategy = "amATOM/OSMO"
+# description = "LP on Osmosis"
+# type = "correlated"
+# featured = false
+# status = true
 
 [on_chain_storage]
 batch_size = 5000

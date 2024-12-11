@@ -1,0 +1,146 @@
+db_path = "data.db"
+log_level = "debug"
+assets = ["amATOM"]
+default_interval = 43200 #seconds
+
+sources = ["neutron"]
+
+l1_percent = 25
+l2_percent = 12
+
+blacklist = [
+    "neutron173fd8wpfzyqnfnpwq2zhtgdstujrjz2wkprkjfr6gqg4gknctjyq6m3tch" # Astroport Generator
+]
+
+[referral]
+graphql_url = "http://127.0.0.1:3001"
+
+[protocols.neutron]
+source = "neutron"
+rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+jitter = 10000
+pagination_limit = 10000
+[protocols.neutron.assets.amATOM]
+multiplier = 1
+denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+[protocols.neutron.frontend_data]
+link = "https://www.neutron.org"
+link_text = "Go to Neutron"
+chain_name = "neutron"
+[protocols.neutron.assets.amATOM.frontend_data]
+multiplier = 1
+visible = true
+strategy = "amATOM"
+description = "Holding amATOM on Neutron"
+type = "single-sided"
+featured = false
+status = true
+
+# Astroport configuration
+
+# [protocols.neutron-astroport]
+# rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+# source = "astroport"
+# jitter = 10000
+# concurrency_limit = 6
+# pagination_limit = 30
+#
+# [protocols.neutron-astroport.frontend_data]
+# chain_name = "neutron"
+# link = "https://astroport.fi"
+# link_text = "Go to Astroport"
+#
+# [protocols.neutron-astroport.assets.amATOM_USDC]
+# multiplier = 10
+# denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+# pair_contract = "neutron1xchp4gkr4w5ux9a4zc0k6zptndsq8jjhvdfsqu0qacsg0ssakfysezfkst"
+#
+# [protocols.neutron-astroport.assets.amATOM_USDC.frontend_data]
+# multiplier = 10
+# visible = true
+# strategy = "amATOM/USDC"
+# description = "Astroport Liquidity Pool"
+# type = "correlated"
+# featured = true
+# status = true
+#
+# [protocols.neutron-astroport.assets.amATOM_dATOM]
+# multiplier = 5
+# denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+# pair_contract = "neutron14y0xyavpf5xznw56u3xml9f2jmx8ruk3y8f5e6zzkd9mhmcps3fs59g4vt"
+#
+# [protocols.neutron-astroport.assets.amATOM_dATOM.frontend_data]
+# multiplier = 5
+# visible = true
+# strategy = "amATOM/dATOM"
+# description = "Astroport Liquidity Pool"
+# type = "correlated"
+# featured = true
+# status = true
+#
+# [protocols.neutron-astroport.assets.amATOM_stATOM]
+# multiplier = 5
+# denom = "factory/neutron1shwxlkpdjd8h5wdtrykypwd2v62z5glr95yp0etdcspkkjwm5meq82ndxs/amatom"
+# pair_contract = "neutron1w8vmg3zwyh62edp7uxpaw90447da9zzlv0kqh2ajye6a6mseg06qseyv5m"
+#
+# [protocols.neutron-astroport.assets.amATOM_stATOM.frontend_data]
+# multiplier = 5
+# visible = true
+# strategy = "amATOM/stATOM"
+# description = "Astroport Liquidity Pool"
+# type = "correlated"
+# featured = true
+# status = true
+#
+
+
+# [protocols.neutron-astroport-generator]
+# rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+# source = "generator"
+# jitter = 10000
+# pagination_limit = 50
+# generator_contract = "neutron173fd8wpfzyqnfnpwq2zhtgdstujrjz2wkprkjfr6gqg4gknctjyq6m3tch"
+# [protocols.neutron-astroport-generator.assets.dATOM]
+# multiplier = 1
+# denom = "ibc/C4CFF46FD6DE35CA4CF4CE031E643C8FDC9BA4B99AE598E9B0ED98FE3A2319F9"
+# pair_contract = "neutron15d0se9nw9stqx9ms9ey85gfpraqwl80t5urmjfk2jwtqxpxk3x3qctjt4n"
+
+# [protocols.neutron-astroport-generator.frontend_data]
+# chain_name = "neutron"
+# link = "https://astroport.fi"
+# link_text = "Go to Astroport"
+# [protocols.neutron-astroport-generator.assets.dATOM.frontend_data]
+# multiplier = 1
+# visible = true
+# strategy = "dATOM/ATOM"
+# description = "LP on Astroport Generator"
+# type = "correlated"
+# featured = true
+# status = true
+
+# [protocols.neutron-apollo]
+# rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+# source = "apollo"
+# jitter = 10000
+# pagination_limit = 10000
+# [protocols.neutron-apollo.assets.dATOM]
+# multiplier = 1
+# denom = "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
+# vault_contract = "neutron14xx9hcw0cyw2vtxh586h5usymfyk06jnj677awhntrkxtm72amrsmj5fxt"
+
+[on_chain_storage]
+batch_size = 5000
+rpc = "https://rpc-falcron.pion-1.ntrn.tech:443"
+contract = "neutron1zrfx2nqmwds8m0fcpu4uxm2vlec7gd08arha88d6fzyme4fzypjqys6j2z"
+sender = "neutron1tp0uerx90l38qlw39jat09cp72h6awdhnf9tzk"
+mnemonic = "book someone nut coral fossil increase maple edge angry glass solar sort someone artwork profit ceiling hollow fitness angle sphere bird aim attract six"
+gas = "0.025untrn"
+gas_adjustment = 1.4
+
+[pricefeed]
+jitter = 10000 # must equal to the jitter of neutron
+rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+contract = "neutron1m2emc93m9gpwgsrsf2vylv9xvgqh654630v7dfrhrkmr5slly53spg85wv" #mainnet
+[pricefeed.assets.amATOM]
+pyth_id = "b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819"
+core_contract = "neutron1r8t7mc62gtlqqe9zfur0g73ppfgulqqhlzh82r9uggca5hq2336qmv2xj0"
