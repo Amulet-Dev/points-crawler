@@ -1,9 +1,10 @@
 export type PoolPositionResponse =
-  | {
-      poolPositions: {
-        nodes: {
-          id: string;
-        }[];
-      };
+    | {
+        poolPositions: {
+            nodes: {
+                id: string;
+                height: string;
+            }[];
+        };
     }
-  | undefined;
+    | undefined;
