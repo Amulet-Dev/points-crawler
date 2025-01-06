@@ -8,19 +8,21 @@ import ApolloSource from './apollo';
 import OsmosisLPSource from './osmosis-lp';
 import NolusSource from './nolus';
 import DemexSource from './demex';
+import AstrovaultSource from './astrovault';
 
 const out = {
-  neutron: BankModuleSource,
-  kujira: BankModuleSource,
-  mars: MarsSource,
-  levana: LevanaSource,
-  osmosis: SubqueryIndexerSource,
-  secret: SubqueryIndexerSource,
-  astroport: AstroportSource,
-  generator: AstroportGeneratorSource,
-  apollo: ApolloSource,
-  nolus: NolusSource,
-  demex: DemexSource,
-  'osmosis-lp': OsmosisLPSource,
+    neutron: BankModuleSource,
+    kujira: BankModuleSource,
+    mars: MarsSource,
+    levana: LevanaSource,
+    osmosis: SubqueryIndexerSource,
+    secret: SubqueryIndexerSource,
+    astroport: AstroportSource,
+    generator: AstroportGeneratorSource,
+    apollo: ApolloSource,
+    nolus: NolusSource,
+    demex: DemexSource,
+    'osmosis-lp': OsmosisLPSource,
+    astrovault: AstrovaultSource,
 };
 export default out;

@@ -3,7 +3,7 @@ log_level = "debug"
 assets = ["amATOM"]
 default_interval = 43200 #seconds
 
-sources = ["neutron", "astroport", "generator", "levana"]
+sources = ["neutron", "astroport", "generator", "levana", "osmosis-lp", "astrovault"]
 
 l1_percent = 25
 l2_percent = 12
@@ -183,15 +183,34 @@ type = "single-sided"
 featured = false
 status = true
 
-# [protocols.neutron-apollo]
-# rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
-# source = "apollo"
-# jitter = 10000
-# pagination_limit = 10000
-# [protocols.neutron-apollo.assets.dATOM]
-# multiplier = 1
-# denom = "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
-# vault_contract = "neutron14xx9hcw0cyw2vtxh586h5usymfyk06jnj677awhntrkxtm72amrsmj5fxt"
+# Astrovault Configuration
+[protocols.neutron-astrovault]
+rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+source = "astrovault"
+jitter = 10000
+concurrency_limit = 3
+pagination_limit = 300
+
+[protocols.neutron-astrovault.frontend_data]
+link = "https://astrovault.io/pool"
+link_text = "Go to Astrovault"
+chain_name = "neutron"
+
+[protocols.neutron-astrovault.assets.amATOM_xATOM]
+multiplier = 10
+# Note: We are tracking the xATOM portion of the pool, but the price feed will be referencing amATOM
+# (or really ATOM) price from Pyth. We can do this be cause xATOM is meant to be 1-1 with ATOM price
+denom = ""
+staking_contract = "neutron1v65wfpjjn0hckqsds34prxs434tjeh573te85mayzkrwkcclgt6q5th732"
+
+[protocols.neutron-astrovault.assets.amATOM_xATOM.frontend_data]
+multiplier = 10
+visible = true
+strategy = "amATOM/xATOM"
+description = "Earn ingots by participating in the amATOM/xATOM liquidity pool"
+type = "correlated"
+featured = true
+status = true
 
 # Osmosis Configuration
 
@@ -235,6 +254,17 @@ status = true
 # type = "correlated"
 # featured = false
 # status = true
+
+# [protocols.neutron-apollo]
+# rpc = "https://rpc-kralum.neutron-1.neutron.org:443/"
+# source = "apollo"
+# jitter = 10000
+# pagination_limit = 10000
+# [protocols.neutron-apollo.assets.dATOM]
+# multiplier = 1
+# denom = "ibc/B559A80D62249C8AA07A380E2A2BEA6E5CA9A6F079C912C3A9E9B494105E4F81"
+# vault_contract = "neutron14xx9hcw0cyw2vtxh586h5usymfyk06jnj677awhntrkxtm72amrsmj5fxt"
+
 
 [on_chain_storage]
 batch_size = 5000
