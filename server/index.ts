@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import * as trpcExpress from '@trpc/server/adapters/express';
 import express from 'express';
 import toml from 'toml';
@@ -121,6 +124,7 @@ const register = getRegistry(config, db);
 
 function getAllowedOrigins(): string[] {
     const origins = process.env.CRAWLER_ALLOWED_ORIGINS;
+    logger.info(`Found allowed origins: ${process.env.CRAWLER_ALLOWED_ORIGINS}`);
     if (!origins) {
         return [];
     }
