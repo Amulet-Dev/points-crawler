@@ -7,6 +7,7 @@ import cors from 'cors';
 import { publicProcedure, router } from './trpc';
 
 import { getLeaderboard } from './controllers/getLeaderboard';
+import { getSupply } from './controllers/getSupply';
 import { getDroplets } from './controllers/getDroplets';
 import { postKyc } from './controllers/postKyc';
 import { getReferralCode } from './controllers/getReferralCode';
@@ -54,6 +55,7 @@ import {
 } from '../types/tRPC/tRPCGetStakerStatus';
 import { GetStakerStatus } from './controllers/getStakerStatus';
 import { tRPCGetLeaderboardResponseSchema } from '../types/tRPC/tRPCGetLeaderboard';
+import { tRPCGetSupplyResponseSchema } from '../types/tRPC/tRPCGetSupply';
 
 const expressApp = express();
 
@@ -108,6 +110,9 @@ const appRouter = router({
     getLeaderboard: publicProcedure
         .output(tRPCGetLeaderboardResponseSchema)
         .query(getLeaderboard(db, logger)),
+    getSupply: publicProcedure
+        .output(tRPCGetSupplyResponseSchema)
+        .query(getSupply(db, logger)),
 });
 
 const port = Number(process.env.CRAWLER_PORT) || 3000;

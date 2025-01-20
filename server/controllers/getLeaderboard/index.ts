@@ -26,7 +26,7 @@ function redactAddress(address: string): string {
     return `${address.slice(0, 6)}...${address.slice(-4)}`;
 }
 
-export function getLeaderboard(db: Database, logger: Logger) {
+export function getLeaderboard(db: Database, _logger: Logger) {
     return function(): tRPCLeaderboardResponse {
         try {
             const sql = `
