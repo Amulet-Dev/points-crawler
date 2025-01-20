@@ -30,18 +30,38 @@ export function getLeaderboard(db: Database, _logger: Logger) {
     return function(): tRPCLeaderboardResponse {
         try {
             const sql = `
-                SELECT *
-                FROM user_points_public
-                ORDER BY points DESC
-                LIMIT 25
+                WITH aggregated AS (
+                    SELECT
+                        address,
+                        SUM(points + points_l1 + points_l2) AS total_points,
+                        SUM("change") AS total_change
+                    FROM user_points_public
+                    GROUP BY address
+                )
+                SELECT
+                    address,
+                    total_points,
+                    total_change
+                FROM aggregated
+                ORDER BY total_points DESC
+                LIMIT 25;
             `;
-            const rows = db.query<UserPointsPublicRow, []>(sql).all();
+            const rows = db
+                .query<
+                    {
+                        address: string;
+                        total_points: number;
+                        total_change: number;
+                    },
+                    []
+                >(sql)
+                .all();
 
             const leaderboardData: LeaderboardData[] = rows.map((row, idx) => {
                 return {
                     redactedAddress: redactAddress(row.address),
-                    points: row.points,
-                    change: row.change,
+                    points: row.total_points,
+                    change: row.total_change,
                     rank: idx + 1,
                 };
             });
