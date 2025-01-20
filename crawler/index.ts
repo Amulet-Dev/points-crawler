@@ -1,10 +1,10 @@
 import 'dotenv/config';
 import { Command } from 'commander';
-import { connect } from '../db';
+import { HydroAllocation, connect } from '../db';
 import { getLogger } from '../lib/logger';
 import sources from '../lib/sources';
 import { UserBalance } from '../types/sources/userBalance';
-import fs from 'fs';
+import { writeFileSync, readFileSync } from 'fs';
 import toml from 'toml';
 import { updateReferralData } from '../lib/referral';
 import { toNeutronAddress } from '../lib/neutron-address';
@@ -16,12 +16,17 @@ import { getSigningCosmWasmClient } from '../lib/stargate';
 import { validateOnChainContractInfo } from '../lib/validations/config';
 import { getValidData } from '../types/utils';
 import { dropletRuleSchema } from '../types/config/dropletRule';
+import { backupDb, compareUserPoints, parseCSV } from '../lib/utils';
+import { join } from 'path';
+import Database from 'bun:sqlite';
+
+const HYDRO_POT_SIZE = 250000;
 
 const program = new Command();
 program.option('--config <config>', 'Config file path', 'config.toml');
 
 const config = toml.parse(
-    fs.readFileSync(program.getOptionValue('config'), 'utf-8'),
+    readFileSync(program.getOptionValue('config'), 'utf-8'),
 );
 if (!config.log_level) {
     throw new Error('LOG_LEVEL environment variable not set');
@@ -602,13 +607,27 @@ program
                 );
 
                 db.exec(
-                    `WITH ranked as (
-          select address, ROW_NUMBER() OVER (order by points + points_l1 + points_l2 DESC) place FROM user_points_public
-        )
-        UPDATE user_points_public
-        SET
-          prev_place = place,
-          place = (SELECT place FROM ranked WHERE address = user_points_public.address)`,
+                    `
+                    WITH aggregated AS (
+                        SELECT 
+                            address, 
+                            SUM(points + points_l1 + points_l2) AS total_points
+                        FROM user_points_public
+                        GROUP BY address
+                    ),
+                    ranked AS (
+                        SELECT 
+                            address,
+                            ROW_NUMBER() OVER (ORDER BY total_points DESC) AS new_place
+                        FROM aggregated
+                    )
+                    UPDATE user_points_public
+                    SET 
+                    prev_place = place,
+                    place = (SELECT new_place 
+                        FROM ranked 
+                            WHERE ranked.address = user_points_public.address);
+                    `,
                 );
 
                 db.exec(
@@ -827,8 +846,16 @@ program
             );
 
             db.exec(
-                `DELETE FROM user_points_public 
-                 WHERE address IN (SELECT address FROM user_points WHERE batch_id = ?);`,
+                `
+                    DELETE FROM user_points_public
+                    WHERE EXISTS (
+                        SELECT 1
+                        FROM user_points
+                        WHERE user_points.batch_id = ?
+                            AND user_points_public.address = user_points.address
+                        AND user_points_public.asset_id = user_points.asset_id
+                    );
+                 `,
                 [batchId],
             );
             logger.info(
@@ -897,6 +924,234 @@ program
             'Recalculation of points and user data complete for batch IDs: %s',
             batchIds.join(', '),
         );
+    });
+
+const hydroCli = program
+    .command('hydro')
+    .description('Manage rewards to Hydro voting participants');
+
+hydroCli
+    .command('prepare')
+    .argument('<csv_file>', 'CSV file of Hydro votes')
+    .argument('<bid_id>', 'Hydro bid id to process')
+    .option(
+        '-p, --pot',
+        'Pot of points to distribute porportionally among voters',
+    )
+    .action(async (csvFilePath, bidId, options) => {
+        try {
+            const csv = await parseCSV(csvFilePath);
+            const pot: number = options.pot ? Number(options.pot) : HYDRO_POT_SIZE;
+            if (!pot) throw new Error('Invalid pot size');
+
+            let totalVotingPower = 0;
+            const filteredRows: { address: string; votingPower: number }[] = [];
+
+            // 1. Filter valid voters and sum their total voting power
+            for (const row of csv) {
+                // CSV is expected to be address, voting power, bid choice
+                if (!row[0] || !row[1] || !row[2]) {
+                    throw new Error('malfored csv data. Look for missing cells.');
+                }
+
+                const address = row[0].trim();
+                const votingPower = Number.parseInt(row[1]);
+                const bidVoted = row[2];
+
+                if (bidVoted === String(bidId)) {
+                    totalVotingPower += votingPower;
+                    filteredRows.push({ address, votingPower });
+                }
+            }
+
+            // 2. Compute user's share of the pot
+            let allocated = 0;
+            const results = filteredRows.map((row) => {
+                const exactShare = pot * (row.votingPower / totalVotingPower);
+                const flooredShare = Math.floor(exactShare);
+                const fraction = exactShare - flooredShare;
+
+                allocated += flooredShare;
+                return { address: row.address, reward: flooredShare, fraction };
+            });
+
+            // 3. Distribute any leftovers
+            const leftover = pot - allocated;
+            if (leftover > 0) {
+                logger.info(`Found ${leftover} leftover rewards.`);
+                results.sort((a, b) => b.fraction - a.fraction);
+
+                let leftoverCount = leftover;
+                let index = 0;
+                while (leftoverCount > 0) {
+                    results[index].reward += 1;
+                    leftoverCount--;
+                    index++;
+                    if (index >= results.length) {
+                        index = 0;
+                    }
+                }
+
+                logger.info(`Leftover rewards were distributed`);
+            }
+
+            // 4. Save output as JSON
+            const out = join(import.meta.dir, '../static/hydro_allocation.json');
+            writeFileSync(out, JSON.stringify(results, null, 2));
+            logger.info(
+                `Successfully prepared hydro allocation. See ${out} for results.`,
+            );
+        } catch (err) {
+            logger.error(err);
+            process.exit(1);
+        }
+    });
+
+hydroCli
+    .command('allocate')
+    .description('Allocate rewards from a hydro_allocation.json file')
+    .argument('<json>', 'JSON file of the reward distribution')
+    .argument(
+        '<backup dir name>',
+        'Backup directory name expected to be found in project root.',
+    )
+    .option('-d, --debug')
+    .action(async (jsonFilePath, backupDir, options) => {
+        try {
+            // 1. Create hydro_allocations if it doesn't exist.
+            const createTable = `
+                CREATE TABLE IF NOT EXISTS hydro_allocations (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    address TEXT NOT NULL,
+                    reward INTEGER NOT NULL,
+                    group_id INTEGER NOT NULL,
+                    processed INTEGER NOT NULL DEFAULT 0,
+                    created_at INTEGER DEFAULT CURRENT_TIMESTAMP
+                );
+            `;
+            db.exec(createTable);
+
+            // 2. Find the last group id
+            let groupId = 1;
+
+            const lastGroupSql = `
+                SELECT MAX(group_id) as lastGroup FROM hydro_allocations;
+            `;
+            const queryLastGroup = db.query<{ lastGroup: number }, null>(
+                lastGroupSql,
+            );
+            const lastGroup = queryLastGroup.get(null)?.lastGroup;
+            if (lastGroup) {
+                groupId = lastGroup + 1;
+            }
+
+            // 3. Parse JSON and create db entries
+            const dbEntries = [];
+            const file = Bun.file(jsonFilePath);
+            const contents: { address: string; reward: number }[] = await file.json();
+            for (const entry of contents) {
+                if (entry.reward <= 0) continue;
+                dbEntries.push({
+                    $address: entry.address,
+                    $reward: entry.reward,
+                    $group_id: groupId,
+                });
+            }
+
+            // 4. Backup the database
+            const backupFilePath = await backupDb(backupDir);
+
+            // 5. Insert dbEntries into hydro_allocations
+            const insertEntry = db.prepare(
+                'INSERT INTO hydro_allocations (address, reward, group_id) VALUES ($address, $reward, $group_id);',
+            );
+            const insertEntries = db.transaction((entries) => {
+                for (const entry of entries) insertEntry.run(entry);
+                return entries.length;
+            });
+
+            const count = insertEntries(dbEntries);
+            logger.info(`Inserted ${count} entries into hydro_allocations`);
+
+            // 6. Update user_public_points based on hydro_allocations
+            const allocationsSql = `
+                SELECT * FROM hydro_allocations WHERE group_id = ? and processed = 0;
+            `;
+            const allocationsQuery = db.query<HydroAllocation, [number]>(
+                allocationsSql,
+            );
+            const allocations = allocationsQuery.all(groupId);
+            const selectUser = db.prepare<
+                { address: string; points: number; change: number },
+                [string]
+            >(
+                "SELECT * FROM user_points_public WHERE address = ? AND asset_id = 'hydro';",
+            );
+            const updateUserSql = `
+                UPDATE user_points_public
+                SET points = points + ?, change = change + ?
+                WHERE address = ? AND asset_id = 'hydro';
+            `;
+            const updateUser = db.prepare<null, [number, number, string]>(
+                updateUserSql,
+            );
+
+            const insertUserSql = `
+                INSERT INTO user_points_public
+                (address, asset_id, points, change, prev_points_l1, prev_points_l2, points_l1, points_l2, place, prev_place)
+                VALUES (?, 'hydro', ?, ?, 0, 0, 0, 0, 0, 0);
+            `;
+            const insertUser = db.prepare<null, [string, number, number]>(
+                insertUserSql,
+            );
+
+            const updateAllocationSql = `
+                UPDATE hydro_allocations SET processed = 1 WHERE id = ?;
+            `;
+            const updateAllocation = db.prepare<null, [number]>(updateAllocationSql);
+
+            const mergeAllocations = db.transaction((allocations) => {
+                for (const a of allocations) {
+                    if (!a.address) throw new Error('Found no address for allocation');
+                    if (!a.reward) throw new Error('Found no reward for allocation');
+                    if (!a.id) throw new Error('Found no id for allocation');
+
+                    const user = selectUser.all(a.address);
+                    if (user.length > 1)
+                        throw new Error(
+                            `Somehow found multiple rows for (address, asset_id='hydro') => address: ${a.address}`,
+                        );
+
+                    if (user[0]) {
+                        updateUser.run(a.reward, a.reward, user[0].address);
+                    } else {
+                        insertUser.run(a.address, a.reward, a.reward);
+                    }
+
+                    updateAllocation.run(a.id);
+                }
+            });
+
+            mergeAllocations(allocations);
+
+            // 7. Print info based on backup and current database changes
+            if (options.debug) {
+                logger.info('Comparing old database and new database changes...');
+                const backupConn = new Database(backupFilePath, { readonly: true });
+                const tableOutput = compareUserPoints(db, backupConn);
+
+                if (tableOutput === 'No changes found.\n') {
+                    logger.info(tableOutput);
+                } else {
+                    logger.info('\n' + tableOutput);
+                }
+
+                backupConn.close();
+            }
+        } catch (err) {
+            logger.error(err);
+            process.exit(1);
+        }
     });
 
 const scheduleCli = program
