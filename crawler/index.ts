@@ -935,7 +935,7 @@ hydroCli
     .argument('<csv_file>', 'CSV file of Hydro votes')
     .argument('<bid_id>', 'Hydro bid id to process')
     .option(
-        '-p, --pot',
+        '-p, --pot <number>',
         'Pot of points to distribute porportionally among voters',
     )
     .action(async (csvFilePath, bidId, options) => {
