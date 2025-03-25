@@ -17,7 +17,7 @@ graphql_url = "http://0.0.0.0:3001"
 
 [protocols.neutron]
 source = "neutron"
-rpc = "https://rpc.lavenderfive.com:443/neutron"
+rpc = "https://rpc-solara.neutron-1.neutron.org"
 jitter = 10000
 pagination_limit = 10000
 [protocols.neutron.assets.amATOM]
@@ -39,7 +39,7 @@ status = true
 # Astroport configuration
 
 [protocols.neutron-astroport]
-rpc = "https://rpc.lavenderfive.com:443/neutron"
+rpc = "https://rpc-solara.neutron-1.neutron.org"
 source = "astroport"
 jitter = 10000
 concurrency_limit = 6
@@ -93,7 +93,7 @@ featured = true
 status = true
 
 [protocols.neutron-astroport-generator]
-rpc = "https://rpc.lavenderfive.com:443/neutron"
+rpc = "https://rpc-solara.neutron-1.neutron.org"
 source = "generator"
 jitter = 10000
 pagination_limit = 50
@@ -149,7 +149,7 @@ status = true
 # Levana Configuration
 
 [protocols.neutron-levana]
-rpc = "https://rpc.lavenderfive.com:443/neutron"
+rpc = "https://rpc-solara.neutron-1.neutron.org"
 source = "levana"
 jitter = 10000
 concurrency_limit = 3
@@ -185,7 +185,7 @@ status = true
 
 # Astrovault Configuration
 [protocols.neutron-astrovault]
-rpc = "https://rpc.lavenderfive.com:443/neutron"
+rpc = "https://rpc-solara.neutron-1.neutron.org"
 source = "astrovault"
 jitter = 10000
 concurrency_limit = 3
@@ -256,7 +256,7 @@ status = true
 # status = true
 
 # [protocols.neutron-apollo]
-# rpc = "https://rpc.lavenderfive.com:443/neutron"
+# rpc = "https://rpc-solara.neutron-1.neutron.org"
 # source = "apollo"
 # jitter = 10000
 # pagination_limit = 10000
@@ -277,7 +277,7 @@ gas_adjustment = 1.4
 
 [pricefeed]
 jitter = 10000 # must equal to the jitter of neutron
-rpc = "https://rpc.lavenderfive.com:443/neutron"
+rpc = "https://rpc-solara.neutron-1.neutron.org"
 contract = "neutron1m2emc93m9gpwgsrsf2vylv9xvgqh654630v7dfrhrkmr5slly53spg85wv" #mainnet
 [pricefeed.assets.amATOM]
 pyth_id = "b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819"
