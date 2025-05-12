@@ -3,7 +3,7 @@ log_level = "debug"
 assets = ["amATOM"]
 default_interval = 43200 #seconds
 
-sources = ["neutron", "astroport", "generator", "levana", "osmosis-lp", "astrovault"]
+sources = ["neutron", "astroport", "generator", "levana", "osmosis", "osmosis-lp", "astrovault"]
 
 l1_percent = 25
 l2_percent = 12
@@ -214,46 +214,57 @@ status = true
 
 # Osmosis Configuration
 
-# [protocols.osmosis-lp]
-# source = "osmosis-lp"
-# rpc = "https://rpc.archive.osmosis.zone"
-# graphql_url = "http://0.0.0.0:3001"
-# jitter = 10000
-# pagination_limit = 100
-# concurrency_limit = 5
-#
-# [protocols.osmosis-lp.frontend_data]
-# link = "https://app.osmosis.zone/pools"
-# link_text = "Go to Osmosis LP"
-# chain_name = "osmosis"
-#
-# [protocols.osmosis-lp.assets.amATOM_ATOM]
-# multiplier = 1
-# pool_id = "1464"
-# denom = "uosmo"
-#
-# [protocols.osmosis-lp.assets.amATOM_ATOM.frontend_data]
-# multiplier = 1
-# visible = true
-# strategy = "dATOM/ATOM"
-# description = "LP on Osmosis"
-# type = "correlated"
-# featured = false
-# status = true
-#
-# [protocols.osmosis-lp.assets.amATOM_OSMO]
-# multiplier = 1
-# pool_id = "1135"
-# denom = "uosmo"
-#
-# [protocols.osmosis-lp.assets.amATOM_OSMO.frontend_data]
-# multiplier = 1
-# visible = true
-# strategy = "amATOM/OSMO"
-# description = "LP on Osmosis"
-# type = "correlated"
-# featured = false
-# status = true
+[protocols.osmosis]
+source = "osmosis"
+rpc = "https://rpc.archive.osmosis.zone"
+jitter = 10000
+pagination_limit = 100
+concurrency_limit = 4
+
+[protocols.osmosis.frontend_data]
+link = "https://www.osmosis.zone"
+link_text = "Go to Osmosis"
+chain_name = "osmosis"
+
+[protocols.osmosis.assets.amOSMO]
+multiplier = 1
+denom = "ibc/698350B8A61D575025F3ED13E9AC9C0F45C89DEFE92F76D5838F1D3C1A7FF7C9"
+
+[protocols.osmosis.assets.amOSMO.frontend_data]
+multiplier = 1
+visible = true
+strategy = "amOSMO"
+description = "Earn ingots by holding amOSMO in your wallet on Neutron"
+type = "single-sided"
+featured = false
+status = true
+
+[protocols.osmosis-lp]
+source = "osmosis-lp"
+rpc = "https://rpc.archive.osmosis.zone"
+graphql_url = "http://0.0.0.0:3001"
+jitter = 10000
+pagination_limit = 100
+concurrency_limit = 5
+
+[protocols.osmosis-lp.frontend_data]
+link = "https://app.osmosis.zone/pools"
+link_text = "Go to Osmosis LP"
+chain_name = "osmosis"
+
+[protocols.osmosis-lp.assets.amOSMO_USDC]
+multiplier = 1
+pool_id = "1464"
+denom = "uosmo"
+
+[protocols.osmosis-lp.assets.amOSMO_USDC.frontend_data]
+multiplier = 1
+visible = true
+strategy = "amOSMO/USDC"
+description = "LP on Osmosis"
+type = "correlated"
+featured = false
+status = true
 
 # [protocols.neutron-apollo]
 # rpc = "https://rpc-solara.neutron-1.neutron.org"
@@ -281,4 +292,7 @@ rpc = "https://rpc-solara.neutron-1.neutron.org"
 contract = "neutron1m2emc93m9gpwgsrsf2vylv9xvgqh654630v7dfrhrkmr5slly53spg85wv" #mainnet
 [pricefeed.assets.amATOM]
 pyth_id = "b00b60f88b03a6a625a8d1c048c3f66653edf217439983d037e7222c4e612819"
+core_contract = "neutron1r8t7mc62gtlqqe9zfur0g73ppfgulqqhlzh82r9uggca5hq2336qmv2xj0"
+[pricefeed.assets.amOSMO]
+pyth_id = "5867f5683c757393a0670ef0f701490950fe93fdb006d181c8265a831ac0c5c6"
 core_contract = "neutron1r8t7mc62gtlqqe9zfur0g73ppfgulqqhlzh82r9uggca5hq2336qmv2xj0"

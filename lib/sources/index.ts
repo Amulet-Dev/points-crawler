@@ -15,7 +15,7 @@ const out = {
     kujira: BankModuleSource,
     mars: MarsSource,
     levana: LevanaSource,
-    osmosis: SubqueryIndexerSource,
+    osmosis: BankModuleSource,
     secret: SubqueryIndexerSource,
     astroport: AstroportSource,
     generator: AstroportGeneratorSource,
